@@ -1,4 +1,4 @@
-#include <initguid.h>
+﻿#include <initguid.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <Windows.h>
@@ -112,6 +112,8 @@ BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 		//	bRet = !wcscmp(elemType, L"ToggleButton");//ToggleButton开始
 		//	isStartBtn = true;
 		//}
+
+		isStartBtn = false; // This indicates it's not the Start button
 		if (elemName && elemType)
 		{
 			// Check if the element is a SystemTray.OmniButton
@@ -121,11 +123,15 @@ BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 				isStartBtn = false; // This indicates it's not the Start button
 			}
 			// Check if the element is a ToggleButton (Start button)
-			else if (!wcscmp(elemType, L"ToggleButton"))
+			else if ((!wcscmp(elemType, L"ToggleButton")) && (!wcscmp(elemName, L"开始")))
 			{
+
 				bRet = TRUE;
 				isStartBtn = true; // This indicates it's the Start button
+
+
 			}
+
 		}
 
 
