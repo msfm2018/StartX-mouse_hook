@@ -73,6 +73,38 @@ BOOL IsClickInsideTForm1(POINT pt)
 	return FALSE;
 }
 
+void PrintToConsole(const char* message) {
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hConsole == INVALID_HANDLE_VALUE) {
+		AllocConsole(); // 分配一个新的控制台
+		hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	}
+
+	DWORD written;
+	WriteConsoleA(hConsole, message, strlen(message), &written, NULL);
+}
+
+void LogMessageW(const wchar_t* message) {
+	// 使用宽字符写入日志文件
+	FILE* logFile = _wfopen(L"c:\\12\\log.txt", L"a, ccs=UTF-8"); // 指定 UTF-8 编码
+	if (logFile) {
+		fwprintf(logFile, L"%s\n", message);
+		fclose(logFile);
+	}
+	else {
+		OutputDebugString(L"Failed to open log file\n");
+	}
+}
+
+void LogBSTR(BSTR bstr) {
+	if (bstr == NULL) {
+		LogMessageW(L"BSTR is NULL");
+		return;
+	}
+	LogMessageW(bstr);
+}
+
+
 BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 {
 	HRESULT hr = S_OK;
@@ -117,7 +149,7 @@ BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 		if (elemName && elemType)
 		{
 			// Check if the element is a SystemTray.OmniButton
-			if (!wcscmp(elemType, L"SystemTray.OmniButton"))
+			if ((!wcscmp(elemType, L"SystemTray.OmniButton")) || (!wcscmp(elemType, L"SystemTray.OmniButtonLeft"))) //SystemTray.OmniButtonLeft
 			{
 				bRet = TRUE;
 				isStartBtn = false; // This indicates it's not the Start button
@@ -134,12 +166,13 @@ BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 
 		}
 
-
-		OutputDebugStringW(L"Element Type: ");
-		//SystemTray.OmniButton
-		OutputDebugStringW(elemType);
-		OutputDebugStringW(elemName);
-		OutputDebugStringW(L"\n");
+		//LogBSTR(elemType);
+		//LogBSTR(elemName);
+		//OutputDebugStringW(L"Element Type: ");
+		////SystemTray.OmniButton
+		//OutputDebugStringW(elemType);
+		//OutputDebugStringW(elemName);
+		//OutputDebugStringW(L"\n");
 	}
 
 
