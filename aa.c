@@ -1,4 +1,4 @@
-﻿#include <initguid.h>
+#include <initguid.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <Windows.h>
@@ -11,6 +11,8 @@ HHOOK g_hMouseHook = NULL;
 HHOOK Shell_TrayWndMouseHook = NULL;
 HWND hTrayWnd = NULL;
 HWND hWndTForm1 = NULL;  // 用于保存 TForm1 窗口句柄
+
+HWND hWndTFormtip = NULL;
 bool isStartBtn = false;
 //钩住鼠标消息 查看点击位置 然后屏蔽这个消息 给主窗口发送 消息
 typedef enum {
@@ -72,6 +74,20 @@ BOOL IsClickInsideTForm1(POINT pt)
 	}
 	return FALSE;
 }
+
+
+BOOL IsClickInsideTip(POINT pt)
+{
+	// 获取TForm1窗口句柄
+	hWndTFormtip = FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"clipform");
+	if (hWndTFormtip != NULL) {
+		RECT rect;
+		GetWindowRect(hWndTFormtip, &rect);
+		return (pt.x >= rect.left && pt.x <= rect.right && pt.y >= rect.top && pt.y <= rect.bottom);
+	}
+	return FALSE;
+}
+
 
 void PrintToConsole(const char* message) {
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -194,6 +210,30 @@ BOOL IsPointOnEmptyAreaOfNewTaskbar(POINT pt)
 	}
 	return bRet;
 }
+// 模拟 Ctrl+C
+void SimulateCtrlC() {
+	INPUT inputs[4] = { 0 };
+
+	// 按下 Ctrl
+	inputs[0].type = INPUT_KEYBOARD;
+	inputs[0].ki.wVk = VK_CONTROL;
+
+	// 按下 C
+	inputs[1].type = INPUT_KEYBOARD;
+	inputs[1].ki.wVk = 'C';
+
+	// 释放 C
+	inputs[2].type = INPUT_KEYBOARD;
+	inputs[2].ki.wVk = 'C';
+	inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+
+	// 释放 Ctrl
+	inputs[3].type = INPUT_KEYBOARD;
+	inputs[3].ki.wVk = VK_CONTROL;
+	inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
+
+	SendInput(4, inputs, sizeof(INPUT));
+}
 
 // 钩子回调函数
 // // 钩子回调函数
@@ -202,9 +242,11 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 	if (nCode >= 0)
 	{
 		MSLLHOOKSTRUCT* pMouse = (MSLLHOOKSTRUCT*)lParam;
+		static POINT startPoint = { 0, 0 };
 		if (wParam == WM_LBUTTONDOWN)
 		{
 			POINT pt = pMouse->pt;
+			startPoint = pMouse->pt;
 
 			// 如果点击的位置不在TForm1窗口内，发送 WM_CLOSE 消息
 			if (!IsClickInsideTForm1(pt)) {
@@ -213,6 +255,12 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
+
+			if (!IsClickInsideTip(pt)) {
+				if (hWndTFormtip != NULL) {
+					PostMessage(hWndTFormtip, WM_CLOSE, 0, 0);
+				}
+			}
 			//else
 			if (IsPointOnEmptyAreaOfNewTaskbar(pt)) {
 				if (isStartBtn) {
@@ -244,6 +292,30 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				return 1; // 阻止事件继续传播
 			}
 
+		}
+		else if (wParam == WM_LBUTTONUP)
+		{
+			POINT endPoint = pMouse->pt;
+
+			// 比较起始点和结束点
+			if (startPoint.x == endPoint.x && startPoint.y == endPoint.y)
+			{
+				// 鼠标没有移动，可能是选择了文本
+				OutputDebugString(L"Mouse click detected, possibly text selection\n");
+
+				// 你可以在这里进一步处理或获取选中的文本
+				// 例如，通过剪贴板或 UI 自动化检查文本是否选中
+			}
+			else
+			{
+				SimulateCtrlC();
+				// 鼠标移动了，不是简单的点击
+				OutputDebugString(L"Mouse move detected, not text selection\n");
+
+				auto hwnd1 = FindWindow(L"TForm1", L"myxyzabc");
+				// 告诉主程序 启动剪贴程序
+				PostMessage(hwnd1, WM_USER + 1041, 0, 0);
+			}
 		}
 		else if (wParam == WM_RBUTTONDOWN)
 		{
