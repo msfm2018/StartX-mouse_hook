@@ -1,4 +1,4 @@
-#include <initguid.h>
+﻿#include <initguid.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <Windows.h>
@@ -12,7 +12,13 @@ HHOOK Shell_TrayWndMouseHook = NULL;
 HWND hTrayWnd = NULL;
 HWND hWndTForm1 = NULL;  // 用于保存 TForm1 窗口句柄
 
-HWND hWndTFormtip = NULL;
+
+
+HHOOK g_hKeyboardHook = NULL;
+HWND hWndTFormtip = NULL;  // TFormTip 的窗口句柄
+HWND hWndUnderCursor = NULL;  // 当前鼠标下的窗口句柄
+
+
 bool isStartBtn = false;
 //钩住鼠标消息 查看点击位置 然后屏蔽这个消息 给主窗口发送 消息
 typedef enum {
@@ -57,6 +63,46 @@ WinVersion GetOSVersion1() {
 	}
 	return Unsupported;
 }
+
+
+// 定义低级键盘钩子回调函数
+LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+	if (nCode == HC_ACTION) {
+		KBDLLHOOKSTRUCT* pKbdHook = (KBDLLHOOKSTRUCT*)lParam;
+
+		// 如果按下任何键
+		if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+			hWndTFormtip = FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"clipform");
+			if (hWndTFormtip != NULL) {
+
+				// 发送关闭消息给 hWndTFormtip
+				PostMessage(hWndTFormtip, WM_CLOSE, 0, 0);
+				POINT cursorPos;
+				// 获取鼠标下方的窗口句柄
+				GetCursorPos(&cursorPos);
+				hWndUnderCursor = WindowFromPoint(cursorPos);
+
+				// 激活鼠标下的窗口
+				SetForegroundWindow(hWndUnderCursor);
+			}
+		}
+	}
+	return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
+}
+
+// 安装低级键盘钩子
+void SetKeyboardHook() {
+	g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, NULL, 0);
+}
+
+// 移除低级键盘钩子
+void RemoveKeyboardHook() {
+	if (g_hKeyboardHook != NULL) {
+		UnhookWindowsHookEx(g_hKeyboardHook);
+		g_hKeyboardHook = NULL;
+	}
+}
+
 inline BOOL IsWindows11Version22H2OrHigher()
 {
 	return true;
@@ -235,10 +281,32 @@ void SimulateCtrlC() {
 	SendInput(4, inputs, sizeof(INPUT));
 }
 
+// 获取剪贴板文本
+int GetClipboardText(wchar_t* outText, int maxLen) {
+	for (int i = 0; i < 5; i++) {
+		if (OpenClipboard(NULL)) {
+			HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+			if (hData) {
+				wchar_t* pText = (wchar_t*)GlobalLock(hData);
+				if (pText) {
+					wcsncpy_s(outText, maxLen, pText, _TRUNCATE);
+					GlobalUnlock(hData);
+					CloseClipboard();
+					return 1;
+				}
+			}
+			CloseClipboard();
+		}
+		Sleep(50);
+	}
+	return 0;
+}
+
 // 钩子回调函数
 // // 钩子回调函数
 LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+	static wchar_t lastText[1024] = L"";
 	if (nCode >= 0)
 	{
 		MSLLHOOKSTRUCT* pMouse = (MSLLHOOKSTRUCT*)lParam;
@@ -309,12 +377,28 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 			else
 			{
 				SimulateCtrlC();
-				// 鼠标移动了，不是简单的点击
-				OutputDebugString(L"Mouse move detected, not text selection\n");
 
-				auto hwnd1 = FindWindow(L"TForm1", L"myxyzabc");
-				// 告诉主程序 启动剪贴程序
-				PostMessage(hwnd1, WM_USER + 1041, 0, 0);
+				Sleep(50);
+
+				wchar_t currentText[1024] = L"";
+				if (GetClipboardText(currentText, 1024)) {
+					if (wcslen(currentText) > 0 && wcsstr(currentText, L"http") == NULL) {
+						if (wcscmp(lastText, currentText) != 0) {
+
+							POINT pt = pMouse->pt;
+							hWndUnderCursor = WindowFromPoint(pt);
+
+							auto hwnd1 = FindWindow(L"TForm1", L"myxyzabc");
+							// 告诉主程序 启动剪贴程序
+							PostMessage(hwnd1, WM_USER + 1041, 0, 0);
+							wcscpy_s(lastText, 1024, currentText);
+						}
+					}
+				}
+
+
+
+
 			}
 		}
 		else if (wParam == WM_RBUTTONDOWN)
@@ -366,6 +450,7 @@ __declspec(dllexport) void InstallMouseHook()
 	g_winVersion = GetOSVersion1();
 	if (g_winVersion >= Win11) {
 		g_hMouseHook = SetWindowsHookExW(WH_MOUSE_LL, MouseHookProc, 0, 0);
+		SetKeyboardHook();
 	}
 
 }
@@ -376,6 +461,7 @@ __declspec(dllexport) void UninstallMouseHook()
 	if (g_hMouseHook)
 	{
 		UnhookWindowsHookEx(g_hMouseHook);
+		RemoveKeyboardHook();
 		g_hMouseHook = NULL;
 	}
 }
