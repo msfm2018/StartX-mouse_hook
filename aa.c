@@ -6,7 +6,7 @@
 #include <UIAutomationClient.h>
 #include <math.h>
 #define MAX_LOADSTRING 100
-#define WM_MY_CUSTOM_MESSAGE (WM_USER + 1030)
+#define WM_SYSDATE_MESSAGE (WM_USER + 1030)
 HHOOK g_hMouseHook = NULL;
 HHOOK Shell_TrayWndMouseHook = NULL;
 HWND hTrayWnd = NULL;
@@ -16,6 +16,7 @@ HWND hWndTForm1 = NULL;  // 用于保存 TForm1 窗口句柄
 
 HHOOK g_hKeyboardHook = NULL;
 HWND hWndTFormtip = NULL;  // TFormTip 的窗口句柄
+HWND hWndTForm3D = NULL;  // TFormTip 的窗口句柄
 HWND hWndUnderCursor = NULL;  // 当前鼠标下的窗口句柄
 
 
@@ -134,6 +135,17 @@ BOOL IsClickInsideTip(POINT pt)
 	return FALSE;
 }
 
+BOOL IsClickInside3D(POINT pt)
+{
+	// 获取TForm1窗口句柄
+	hWndTForm3D = FindWindow(L"weather_class", L"weather");
+	if (hWndTForm3D != NULL) {
+		RECT rect;
+		GetWindowRect(hWndTForm3D, &rect);
+		return (pt.x >= rect.left && pt.x <= rect.right && pt.y >= rect.top && pt.y <= rect.bottom);
+	}
+	return FALSE;
+}
 
 void PrintToConsole(const char* message) {
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -323,6 +335,13 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
+			if (!IsClickInside3D(pt)) {  //&& IsWindowVisible(hWndTForm3D)
+				if (hWndTForm3D != NULL && IsWindowVisible(hWndTForm3D)) {
+
+					ShowWindow(hWndTForm3D, SW_HIDE);
+				}
+			}
+
 
 			if (!IsClickInsideTip(pt)) {
 				if (hWndTFormtip != NULL) {
@@ -352,7 +371,7 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				else {
 					auto hwnd = FindWindow(L"TForm1", L"myxyzabc");
 					if (hwnd != NULL) {
-						PostMessage(hwnd, WM_MY_CUSTOM_MESSAGE, 0, 0);
+						PostMessage(hwnd, WM_SYSDATE_MESSAGE, 0, 0);
 						return 1; // 阻止事件继续传播
 					}
 				}
