@@ -66,30 +66,68 @@ WinVersion GetOSVersion1() {
 }
 
 
-// 定义低级键盘钩子回调函数
+
+
+
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 	if (nCode == HC_ACTION) {
 		KBDLLHOOKSTRUCT* pKbdHook = (KBDLLHOOKSTRUCT*)lParam;
 
-		// 如果按下任何键
+		// If Backspace or Delete key is pressed
 		if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
-			hWndTFormtip = FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"clipform");
-			if (hWndTFormtip != NULL) {
+			if (pKbdHook->vkCode == VK_BACK || pKbdHook->vkCode == VK_DELETE) {
 
-				// 发送关闭消息给 hWndTFormtip
-				PostMessage(hWndTFormtip, WM_CLOSE, 0, 0);
-				POINT cursorPos;
-				// 获取鼠标下方的窗口句柄
-				GetCursorPos(&cursorPos);
-				hWndUnderCursor = WindowFromPoint(cursorPos);
+				hWndTFormtip = FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"clipform");
+				if (hWndTFormtip != NULL) {
 
-				// 激活鼠标下的窗口
-				SetForegroundWindow(hWndUnderCursor);
+
+					// Get the current mouse cursor position
+					POINT cursorPos;
+					GetCursorPos(&cursorPos);
+
+					// Get the window under the cursor
+					HWND hWndUnderCursor = WindowFromPoint(cursorPos);
+
+					// Optionally: Ensure that the window under the cursor is focused
+					SetForegroundWindow(hWndUnderCursor);
+
+					// Simulate the Backspace or Delete key press
+					INPUT input[2] = { 0 };
+
+					if (pKbdHook->vkCode == VK_BACK) {
+						// Simulate Backspace key press and release
+						input[0].type = INPUT_KEYBOARD;
+						input[0].ki.wVk = VK_BACK;
+
+						input[1].type = INPUT_KEYBOARD;
+						input[1].ki.wVk = VK_BACK;
+						input[1].ki.dwFlags = KEYEVENTF_KEYUP;
+					}
+					else if (pKbdHook->vkCode == VK_DELETE) {
+						// Simulate Delete key press and release
+						input[0].type = INPUT_KEYBOARD;
+						input[0].ki.wVk = VK_DELETE;
+
+						input[1].type = INPUT_KEYBOARD;
+						input[1].ki.wVk = VK_DELETE;
+						input[1].ki.dwFlags = KEYEVENTF_KEYUP;
+					}
+
+					// Send the input events to simulate the deletion
+					SendInput(2, input, sizeof(INPUT));
+
+					// Optionally: Send a message to the window to delete the selected text, or invoke custom logic
+					// Example: Send a custom message to the window to handle the text deletion
+
+					// For now, this simulates the deletion on the window under the cursor
+					return 1;  // Stop the key event from propagating further
+				}
 			}
 		}
 	}
 	return CallNextHookEx(g_hKeyboardHook, nCode, wParam, lParam);
 }
+
 
 // 安装低级键盘钩子
 void SetKeyboardHook() {
