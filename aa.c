@@ -433,25 +433,25 @@ LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 			}
 			else
 			{
-				SimulateCtrlC();
+				//SimulateCtrlC();
 
-				Sleep(50);
+				//Sleep(50);
 
-				wchar_t currentText[1024] = L"";
-				if (GetClipboardText(currentText, 1024)) {
-					if (wcslen(currentText) > 0 && wcsstr(currentText, L"http") == NULL) {
-						if (wcscmp(lastText, currentText) != 0) {
+				//wchar_t currentText[1024] = L"";
+				//if (GetClipboardText(currentText, 1024)) {
+				//	if (wcslen(currentText) > 0 && wcsstr(currentText, L"http") == NULL) {
+				//		if (wcscmp(lastText, currentText) != 0) {
 
-							POINT pt = pMouse->pt;
-							hWndUnderCursor = WindowFromPoint(pt);
+				//			POINT pt = pMouse->pt;
+				//			hWndUnderCursor = WindowFromPoint(pt);
 
-							auto hwnd1 = FindWindow(L"TForm1", L"myxyzabc");
-							// 告诉主程序 启动剪贴程序
-							PostMessage(hwnd1, WM_USER + 1041, 0, 0);
-							wcscpy_s(lastText, 1024, currentText);
-						}
-					}
-				}
+				//			auto hwnd1 = FindWindow(L"TForm1", L"myxyzabc");
+				//			// 告诉主程序 启动剪贴程序
+				//			PostMessage(hwnd1, WM_USER + 1041, 0, 0);
+				//			wcscpy_s(lastText, 1024, currentText);
+				//		}
+				//	}
+				//}
 
 
 
